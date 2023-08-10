@@ -1,0 +1,62 @@
+body {
+    margin: 0;
+}
+
+.outer {
+    display: grid;
+    grid-template-rows: 1fr 6fr;
+    height: 110vh;
+    width: 100vw;
+}
+
+.upper {
+    grid-area: 1 / 1 / 2 / 2;
+    background-color: rgb(144, 143, 143);
+}
+
+.lower {
+    grid-area: auto;
+    background-color: rgb(86, 85, 85);
+}
+
+.main {
+    display: grid;
+    grid-template-columns: 1fr 4fr;
+}
+
+.leftMain {
+    grid-area: auto;
+    background-color: gray;
+}
+
+.rightMain {
+    grid-area: auto;
+}
+
+.leftMain {
+    display: flex;
+    flex-direction: column;
+}
+
+.home {
+    background-color: blanchedalmond;
+    gap: 10px;
+}
+
+.projects {
+    background-color:aquamarine;
+    gap: 10px;
+}
+
+.home, 
+.projects {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 30px;
+}
+
+.showAll {
+    height: 60%;
+    background-color: azure;
+}
