@@ -1,5 +1,9 @@
+import { v4 as uuidv4 } from 'uuid';
+import DailyTask from './DailyTask';
+import WeeklyTask from './WeeklyTask';
+
 class Project {
-    constructor(name, description, estimatedDays, isDone, startDate = null) {
+    constructor(name, description, estimatedDays, isDone, startDate=null) {
         this.name = name;
         this.description = description;
         this.estimatedDays = estimatedDays;
@@ -16,8 +20,12 @@ class Project {
         this.dailyTasks = {};
         this.nextWeeklyTaskDate = this.startDate;
         this.nextDailyTaskDate = this.startDate;
+        this.setEndDate();
+        this.weekCount = 0;
+        this.dayCount = 0;
 
         console.log(`Project Instance created, here's your project id: ${this.id} `)
+        console.log(typeof(this.estimatedDays))
     }
 
     markComplete() {
@@ -25,57 +33,48 @@ class Project {
     }
 
     setEndDate() {
-        let endDate;
-    
-        if (this.startDate === null) {
-            endDate = new Date();
-            
-        } else {
-            endDate = new Date(this.startDate);
-        }
-
-        endDate.setDate(endDate.getDate() + this.estimatedDays);
-        this.endDate = endDate; // Set the endDate property on the object
+        this.endDate = new Date(this.startDate);
+        this.endDate.setDate(this.startDate.getDate() + this.estimatedDays);
     }
 
 
-    static calNextWeeklyTaskDate(weeklyTasks, LatestWeeklyDate) {
+    calNextWeeklyTaskDate() {
 
-        const startDate = LatestWeeklyDate;
+        let nextWeekly = new Date(this.nextWeeklyTaskDate);
 
-        if (Object.keys(weeklyTasks).length > 0) {
-            startDate.setDate(startDate.getDate() + 7);
+        if (Object.keys(this.weeklyTasks).length > 0) {
+            nextWeekly.setDate(nextWeekly.getDate() + 7);
         }
 
-        return startDate;
+        return new Date(nextWeekly);
     }
 
+    calNextDailyTaskDate() {
 
-    static calNextDailyTaskDate(dailyTasks, latestDailyDate) {
+        let nextDaily = new Date(this.nextDailyTaskDate);
 
-        const startDate = latestDailyDate;
-
-        if (Object.keys(dailyTasks).length > 0) {
-            startDate.setDate(startDate.getDate() + 1);
+        if (Object.keys(this.dailyTasks).length > 0) {
+            nextDaily.setDate(nextDaily.getDate() + 1);
         }
 
-        return startDate;
+        return new Date(nextDaily);
     }
 
     appendToWeeklyTasks(assignedTask, description) {
 
-        let weeklyTask = new WeeklyTask(
+        let newWeeklyTask = new WeeklyTask(
             assignedTask,
             description,
             false, // Weekly tasks start as not completed
             this.id, // Reference to the project the weekly task belongs to
-            this.nextWeeklyTaskDate
+            this.nextWeeklyTaskDate,
+            this.weekCount + 1
         );
+        
+        this.weekCount ++
+        this.weeklyTasks[newWeeklyTask.id] = newWeeklyTask;
 
-        this.weeklyTasks[weeklyTask.id] = weeklyTask;
-
-        this.nextWeeklyTaskDate = Project.calNextWeeklyTaskDate(this.weeklyTasks, this.nextWeeklyTaskDate);
-
+        this.nextWeeklyTaskDate = this.calNextWeeklyTaskDate();
     }
 
     appendToDailyTasks(dailyTask, description) {
@@ -85,30 +84,35 @@ class Project {
             description,
             false,
             this.id,
-            this.nextDailyTaskDate
+            this.nextDailyTaskDate,
+            this.dayCount + 1
         );
-
+        
+        this.dayCount ++
         this.dailyTasks[newDailyTask.id] = newDailyTask;
 
-        this.nextDailyTaskDate = Project.calNextDailyTaskDate(this.dailyTasks, this.nextDailyTaskDate);
+        this.nextDailyTaskDate = this.calNextDailyTaskDate();
 
 
         // Check if the new daily task belongs to a weekly task and add its reference (UUID) to the weekly task's dailyTasks list
 
         for (const weeklyTaskId in this.weeklyTasks) {
+
             const weeklyTask = this.weeklyTasks[weeklyTaskId];
+
+            const endOfWeek = new Date(weeklyTask.startDate);
+            endOfWeek.setDate(endOfWeek.getDate() + 7);
 
             if (
                 newDailyTask.startDate >= weeklyTask.startDate &&
-                newDailyTask.startDate < new Date(weeklyTask.startDate.getDate() + 7)
+                newDailyTask.startDate < endOfWeek
             ) {
-                weeklyTask.dailyTasks.push(newDailyTask.id); // Push the UUID of the daily task
+                weeklyTask.dailyTasks.push(newDailyTask.day); // Push the UUID of the daily task
                 break; // Assuming that a daily task cannot belong to multiple weekly tasks within the same project
             }
         }
     
     }
-
 
     removeFromWeeklyTasks(taskIdToRemove) {
         if (this.weeklyTasks[taskIdToRemove]) {
@@ -163,3 +167,5 @@ class Project {
     }
 
 }
+
+export default Project

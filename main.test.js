@@ -1,155 +1,242 @@
-const { expect } = require('chai');
-const { v4: uuidv4 } = require('uuid');
-const { ProjectManager, Project, WeeklyTask, DailyTask } = require('./src/main');
+class Task {
+    constructor(name, description, estimatedDays, severity, isDone, startDate) {
+        this.name = name;
+        this.description = description;
+        this.estimatedDays = estimatedDays;
+        this.isDone = isDone;
+        this.startDate = startDate;
+    }
+    
+    markComplete() {
+        this.isDone = true;
+    }
 
-describe('ProjectManager', () => {
-  let projectManager;
+    updateTask(updates) {
+        for (const property in updates) {
+            if (this.hasOwnProperty(property)) {
+                this[property] = updates[property];
+            }
+        }
+    }
+}
 
-  beforeEach(() => {
-    projectManager = new ProjectManager();
-  });
 
-  it('should create a new project', () => {
-    const project = projectManager.createProject('Test Project', 'Test Description', 10, 3, false, new Date());
-    expect(project).to.be.an.instanceOf(Project);
-    expect(projectManager.getAllProjects()).to.have.lengthOf(1);
-  });
+class DailyTask extends Task {
+    constructor(name, description, isDone, projectID, startDate) {
+        super(name, description, null, isDone, startDate); // We pass null as estimatedDays since it's not used for DailyTask
+        this.projectID = projectID;
+        this.id = uuidv4(); // Generate UUID for daily task
+    }
+}
 
-  it('should update an existing project', () => {
-    const project = projectManager.createProject('Test Project', 'Test Description', 10, 3, false, new Date());
-    const updates = {
-      name: 'Updated Project Name',
-      description: 'Updated Description',
-      estimatedDays: 15,
-    };
-    projectManager.updateProject(project, updates);
-    expect(project.name).to.equal(updates.name);
-    expect(project.description).to.equal(updates.description);
-    expect(project.estimatedDays).to.equal(updates.estimatedDays);
-  });
+class WeeklyTask extends Task {
+    constructor(name, description, isDone, projectID, startDate) {
+        super(name, description, null, isDone, startDate); // We pass null as estimatedDays since it's not used for WeeklyTask
+        this.projectID = projectID;
+        this.dailyTasks = {};
+    }
+}
 
-  it('should delete an existing project', () => {
-    const project = projectManager.createProject('Test Project', 'Test Description', 10, 3, false, new Date());
-    projectManager.deleteProject(project);
-    expect(projectManager.getAllProjects()).to.have.lengthOf(0);
-  });
-});
+class ProjectManager {
+    constructor() {
+        this.projects = {};
+    }
 
-describe('Project', () => {
-  let project;
+    createProject(name, description, estimatedDays, isDone, startDate) {
+        const project = new Project(name, description, estimatedDays, isDone, startDate);
+        this.projects[project.id] = project;
+        return project;
+    }
 
-  beforeEach(() => {
-    project = new Project('Test Project', 'Test Description', 10, 3, false, new Date());
-  });
+    updateProject(project, updates) {
+        for (const property in updates) {
+            if (project.hasOwnProperty(property)) {
+                project[property] = updates[property];
+            }
+        }
+    }
 
-  it('should create weekly tasks with the correct start dates', () => {
-    const task1 = 'Task 1';
-    const task2 = 'Task 2';
-    project.setEndDate(); // Make sure to set the endDate before adding tasks
-    project.appendToWeeklyTasks(task1, 'Task 1 description'); // Provide a description for the weekly task
-    project.appendToWeeklyTasks(task2, 'Task 2 description'); // Provide a description for the weekly task
+    deleteProjectById(id) {
+        delete this.projects[id];
+    }
 
-    // Assert that the weekly tasks were added correctly
-    expect(project.weeklyTasks).to.have.lengthOf(2);
-    expect(project.weeklyTasks[0].startDate).to.eql(project.startDate);
-    expect(project.weeklyTasks[1].startDate).to.eql(new Date(project.startDate.getTime() + 7 * 24 * 60 * 60 * 1000));
-  });
+    getProjectById(id) {
+        return this.projects[id]
+    }
 
-  it('should create daily tasks with the correct start dates', () => {
-    const task1 = 'Task 1';
-    const task2 = 'Task 2';
-    project.setEndDate(); // Make sure to set the endDate before adding tasks
-    project.appendToDailyTasks(task1, 'Task 1 description'); // Provide a description for the daily task
-    project.appendToDailyTasks(task2, 'Task 2 description'); // Provide a description for the daily task
+    getAllProjects() {
+        // return this.projects;
+        return Object.values(this.projects);
+    }
+}
+import { v4 as uuidv4 } from 'uuid';
+class Project {
+    constructor(name, description, estimatedDays, isDone, startDate = null) {
+        this.name = name;
+        this.description = description;
+        this.estimatedDays = estimatedDays;
+        this.isDone = isDone;
 
-    // Assert that the daily tasks were added correctly
-    expect(project.dailyTasks).to.have.lengthOf(2);
-    expect(project.dailyTasks[0].startDate).to.eql(project.startDate);
-    expect(project.dailyTasks[1].startDate).to.eql(new Date(project.startDate.getTime() + 1 * 24 * 60 * 60 * 1000));
-  });
-});
+        if (startDate !== null) {
+            this.startDate = new Date(startDate);
+        } else {
+            this.startDate = new Date();
+        }
 
-describe('WeeklyTask', () => {
-  let weeklyTask;
+        this.id = uuidv4();
+        this.weeklyTasks = {};
+        this.dailyTasks = {};
+        this.nextWeeklyTaskDate = this.startDate;
+        this.nextDailyTaskDate = this.startDate;
 
-  beforeEach(() => {
-    const projectID = uuidv4();
-    const startDate = new Date();
-    weeklyTask = new WeeklyTask('Weekly Task', 'Test Description', false, projectID, startDate);
-  });
+        console.log(`Project Instance created, here's your project id: ${this.id} `)
+    }
 
-  it('should mark a weekly task as complete', () => {
-    weeklyTask.markComplete();
-    expect(weeklyTask.isDone).to.be.true;
-  });
+    markComplete() {
+        this.isDone = true;
+    }
 
-  it('should update the severity of a weekly task', () => {
-    weeklyTask.updatePriority(5);
-    expect(weeklyTask.severity).to.equal(5);
-  });
-});
+    setEndDate() {
+        let endDate;
+    
+        if (this.startDate === null) {
+            endDate = new Date();
+            
+        } else {
+            endDate = new Date(this.startDate);
+        }
 
-describe('DailyTask', () => {
-  let dailyTask;
+        endDate.setDate(endDate.getDate() + this.estimatedDays);
+        this.endDate = endDate; // Set the endDate property on the object
+    }
 
-  beforeEach(() => {
-    const projectID = uuidv4();
-    const startDate = new Date();
-    dailyTask = new DailyTask('Daily Task', 'Test Description', 3, false, projectID, startDate);
-  });
 
-  it('should mark a daily task as complete', () => {
-    dailyTask.markComplete();
-    expect(dailyTask.isDone).to.be.true;
-  });
+    static calNextWeeklyTaskDate(weeklyTasks, LatestWeeklyDate) {
 
-  it('should update the severity of a daily task', () => {
-    dailyTask.updatePriority(2);
-    expect(dailyTask.severity).to.equal(2);
-  });
-});
+        const startDate = LatestWeeklyDate;
 
-describe('Project Form Submission', () => {
-  it('should handle form data correctly', () => {
-    const projectManager = new ProjectManager();
-    const projectForm = document.createElement("form");
-    const projectNameInput = document.createElement("input");
-    const descriptionInput = document.createElement("input");
-    const estimatedDaysInput = document.createElement("input");
-    const projectSeverityInput = document.createElement("input");
-    const isDoneCheckbox = document.createElement("input");
-    const submitButton = document.createElement("button");
+        if (Object.keys(weeklyTasks).length > 0) {
+            startDate.setDate(startDate.getDate() + 7);
+        }
 
-    projectNameInput.name = "projectName";
-    descriptionInput.name = "description";
-    estimatedDaysInput.name = "estimatedDays";
-    projectSeverityInput.name = "projectSeverity";
-    isDoneCheckbox.name = "isDone";
-    submitButton.type = "submit";
+        return startDate;
+    }
 
-    projectNameInput.value = "Test Project";
-    descriptionInput.value = "Test Description";
-    estimatedDaysInput.value = "10";
-    projectSeverityInput.value = "3";
-    isDoneCheckbox.checked = false;
 
-    projectForm.appendChild(projectNameInput);
-    projectForm.appendChild(descriptionInput);
-    projectForm.appendChild(estimatedDaysInput);
-    projectForm.appendChild(projectSeverityInput);
-    projectForm.appendChild(isDoneCheckbox);
-    projectForm.appendChild(submitButton);
+    static calNextDailyTaskDate(dailyTasks, latestDailyDate) {
 
-    const event = { preventDefault: () => {} };
-    projectForm.addEventListener("submit", handleFormData);
-    projectForm.dispatchEvent(new Event("submit", event));
+        const startDate = latestDailyDate;
 
-    const createdProject = projectManager.getAllProjects()[0];
+        if (Object.keys(dailyTasks).length > 0) {
+            startDate.setDate(startDate.getDate() + 1);
+        }
 
-    expect(createdProject.name).to.equal("Test Project");
-    expect(createdProject.description).to.equal("Test Description");
-    expect(createdProject.estimatedDays).to.equal(10);
-    expect(createdProject.severity).to.equal(3);
-    expect(createdProject.isDone).to.equal(false);
-  });
-});
+        return startDate;
+    }
+
+    appendToWeeklyTasks(assignedTask, description) {
+
+        let weeklyTask = new WeeklyTask(
+            assignedTask,
+            description,
+            false, // Weekly tasks start as not completed
+            this.id, // Reference to the project the weekly task belongs to
+            this.nextWeeklyTaskDate
+        );
+
+        this.weeklyTasks[weeklyTask.id] = weeklyTask;
+
+        this.nextWeeklyTaskDate = Project.calNextWeeklyTaskDate(this.weeklyTasks, this.nextWeeklyTaskDate);
+
+    }
+
+    appendToDailyTasks(dailyTask, description) {
+
+        let newDailyTask = new DailyTask(
+            dailyTask,
+            description,
+            false,
+            this.id,
+            this.nextDailyTaskDate
+        );
+
+        this.dailyTasks[newDailyTask.id] = newDailyTask;
+
+        this.nextDailyTaskDate = Project.calNextDailyTaskDate(this.dailyTasks, this.nextDailyTaskDate);
+
+
+        // Check if the new daily task belongs to a weekly task and add its reference (UUID) to the weekly task's dailyTasks list
+
+        for (const weeklyTaskId in this.weeklyTasks) {
+            const weeklyTask = this.weeklyTasks[weeklyTaskId];
+
+            if (
+                newDailyTask.startDate >= weeklyTask.startDate &&
+                newDailyTask.startDate < new Date(weeklyTask.startDate.getDate() + 7)
+            ) {
+                weeklyTask.dailyTasks.push(newDailyTask.id); // Push the UUID of the daily task
+                break; // Assuming that a daily task cannot belong to multiple weekly tasks within the same project
+            }
+        }
+    
+    }
+
+
+    removeFromWeeklyTasks(taskIdToRemove) {
+        if (this.weeklyTasks[taskIdToRemove]) {
+            const removedWeek = this.weeklyTasks[taskIdToRemove];
+
+            // Remove the week
+            delete this.weeklyTasks[taskIdToRemove];
+
+            const currentDate = new Date();
+
+            // Check if the removed week is ongoing
+            if (removedWeek.startDate <= currentDate && currentDate < removedWeek.nextWeeklyTaskDate) {
+                // Adjust the start dates of upcoming weeks
+                for (const taskId in this.weeklyTasks) {
+                    const week = this.weeklyTasks[taskId];
+                    if (week.startDate >= removedWeek.nextWeeklyTaskDate) {
+                        week.startDate = new Date();
+                    }
+                }
+                // Update nextWeeklyTaskDate
+                this.updateNextWeeklyTaskDate();
+            }
+        }
+    }
+
+    removeFromDailyTasks(taskIdToRemove) {
+        if (this.dailyTasks[taskIdToRemove]) {
+            // Remove the daily task
+            delete this.dailyTasks[taskIdToRemove];
+
+            // Update nextDailyTaskDate
+            this.updateNextDailyTaskDate();
+        }
+    }
+
+    updateNextWeeklyTaskDate() {
+        const dates = Object.values(this.weeklyTasks).map(week => week.startDate);
+        if (dates.length > 0) {
+            this.nextWeeklyTaskDate = new Date(Math.min(...dates));
+        } else {
+            this.nextWeeklyTaskDate = null; // No more weekly tasks
+        }
+    }
+
+    updateNextDailyTaskDate() {
+        const dates = Object.values(this.dailyTasks).map(task => task.startDate);
+        if (dates.length > 0) {
+            this.nextDailyTaskDate = new Date(Math.min(...dates));
+        } else {
+            this.nextDailyTaskDate = null; // No more daily tasks
+        }
+    }
+
+}
+
+
+let newManager = new ProjectManager()
+
+newManager.createProject("Project1", "Nothing", 12, false, null);

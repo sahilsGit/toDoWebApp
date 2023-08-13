@@ -9,12 +9,11 @@ function handleFormData(event) {
 
     const pName = projectForm.projectName.value;
     const pDesc = projectForm.description.value;
-    const pEstimatedDays = projectForm.estimatedDays.value; 
-    const pSeverity = projectForm.projectSeverity.value;
+    const pEstimatedDays = parseInt(projectForm.estimatedDays.value, 10) 
     const pIsDone = projectForm.isDone.checked;
     const pStartDate = projectForm.startDate.value;
 
-    myManager.createProject(pName, pDesc, pEstimatedDays, pSeverity, pIsDone, pStartDate);
+    myManager.createProject(pName, pDesc, pEstimatedDays, pIsDone, pStartDate);
 
     // Reset the form data
     projectForm.reset();
