@@ -72,7 +72,7 @@ class Project {
         );
         
         this.weekCount ++
-        this.weeklyTasks[newWeeklyTask.id] = newWeeklyTask;
+        this.weeklyTasks[newWeeklyTask.week] = newWeeklyTask;
 
         this.nextWeeklyTaskDate = this.calNextWeeklyTaskDate();
     }
@@ -89,16 +89,16 @@ class Project {
         );
         
         this.dayCount ++
-        this.dailyTasks[newDailyTask.id] = newDailyTask;
+        this.dailyTasks[newDailyTask.day] = newDailyTask;
 
         this.nextDailyTaskDate = this.calNextDailyTaskDate();
 
 
         // Check if the new daily task belongs to a weekly task and add its reference (UUID) to the weekly task's dailyTasks list
 
-        for (const weeklyTaskId in this.weeklyTasks) {
+        for (const weeklyTaskNo in this.weeklyTasks) {
 
-            const weeklyTask = this.weeklyTasks[weeklyTaskId];
+            const weeklyTask = this.weeklyTasks[weeklyTaskNo];
 
             const endOfWeek = new Date(weeklyTask.startDate);
             endOfWeek.setDate(endOfWeek.getDate() + 7);
@@ -107,44 +107,61 @@ class Project {
                 newDailyTask.startDate >= weeklyTask.startDate &&
                 newDailyTask.startDate < endOfWeek
             ) {
-                weeklyTask.dailyTasks.push(newDailyTask.day); // Push the UUID of the daily task
+                weeklyTask.dailyTasks.push(newDailyTask.day); // Push the day pointer to corresponding weekTask 
                 break; // Assuming that a daily task cannot belong to multiple weekly tasks within the same project
             }
         }
     
     }
 
-    removeFromWeeklyTasks(taskIdToRemove) {
-        if (this.weeklyTasks[taskIdToRemove]) {
-            const removedWeek = this.weeklyTasks[taskIdToRemove];
+    removeFromWeeklyTasks(week) {
 
-            // Remove the week
-            delete this.weeklyTasks[taskIdToRemove];
-
+        if (this.weeklyTasks[week]) {
+            const removedWeek = this.weeklyTasks[week];
+            delete this.weeklyTasks[week];
             const currentDate = new Date();
 
-            // Check if the removed week is ongoing
-            if (removedWeek.startDate <= currentDate && currentDate < removedWeek.nextWeeklyTaskDate) {
-                // Adjust the start dates of upcoming weeks
-                for (const taskId in this.weeklyTasks) {
-                    const week = this.weeklyTasks[taskId];
-                    if (week.startDate >= removedWeek.nextWeeklyTaskDate) {
-                        week.startDate = new Date();
-                    }
-                }
-                // Update nextWeeklyTaskDate
-                this.updateNextWeeklyTaskDate();
+            for (let dayToRemove of removedWeek.dailyTasks) {
+                this.removeFromDailyTasks(dayToRemove)
             }
+ 
+            // Check if the removed week is ongoing
+            if (removedWeek.startDate <= currentDate && this.weeklyTasks[week + 1]) {
+                let nextDate = removedWeek.startDate
+                for (let i = week + 1; i < Object.keys(this.weeklyTasks).length; i++) {
+
+                    let comingWeekDate = this.weeklyTasks[i].startDate;
+                    this.weeklyTasks[i].startDate = nextDate;
+                    nextDate = comingWeekDate;
+                }
+
+            }
+
+            else if (removedWeek.startDate <= currentDate && !this.weeklyTasks[week + 1]) {
+                this.nextWeeklyTaskDate = removedWeek.startDate
+            }
+
         }
+            
     }
-
-    removeFromDailyTasks(taskIdToRemove) {
-        if (this.dailyTasks[taskIdToRemove]) {
+        
+    removeFromDailyTasks(day) {
+        if (this.dailyTasks[day]) {
             // Remove the daily task
-            delete this.dailyTasks[taskIdToRemove];
-
+            delete this.dailyTasks[day];
+    
             // Update nextDailyTaskDate
             this.updateNextDailyTaskDate();
+    
+            // Remove the reference from associated weekly tasks
+            for (const weeklyTaskNo in this.weeklyTasks) {
+                const weeklyTask = this.weeklyTasks[weeklyTaskNo];
+                const index = weeklyTask.dailyTasks.indexOf(day);
+                if (index !== -1) {
+                    weeklyTask.dailyTasks.splice(index, 1);
+                    break;
+                }
+            }
         }
     }
 
@@ -165,7 +182,6 @@ class Project {
             this.nextDailyTaskDate = null; // No more daily tasks
         }
     }
-
 }
 
 export default Project
